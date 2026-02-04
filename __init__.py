@@ -3,6 +3,8 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, AutoModel
 import folder_paths
 
+if not "huggingface" in folder_paths.folder_names_and_paths:
+    folder_paths.add_model_folder_path("huggingface", os.path.join(folder_paths.models_dir, "huggingface"))
 
 class LoadHuggingFaceModel:
     """Node to load any HuggingFace model."""
