@@ -1,6 +1,7 @@
 import os
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, AutoModel
+from peft import PeftModel
 import folder_paths
 
 if not "huggingface" in folder_paths.folder_names_and_paths:
@@ -288,15 +289,77 @@ class RunHuggingFaceModel:
         return (response,)
 
 
+class ApplyLoRAAdapter:
+    """Node to apply a LoRA adapter to a loaded HuggingFace model."""
+
+    CATEGORY = "transformers"
+    FUNCTION = "execute"
+    OUTPUT_NODE = False
+    RETURN_TYPES = ("hf_model",)
+    RETURN_NAMES = ("hf_model",)
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "hf_model": ("hf_model",),
+                "lora_model_id": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "HuggingFace LoRA adapter ID or local path"
+                    }
+                ),
+            },
+            "optional": {
+                "trust_remote_code": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "Allow executing remote code from adapter repo"
+                    }
+                ),
+                "use_local_cache": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "Use ComfyUI models folder for caching"
+                    }
+                ),
+            }
+        }
+
+    def execute(self, hf_model, lora_model_id, trust_remote_code=False, use_local_cache=True):
+        cache_dir = None
+        if use_local_cache:
+            try:
+                hf_folder = folder_paths.get_folder_paths("huggingface")[0]
+                cache_dir = os.path.join(hf_folder, lora_model_id.replace("/", "_"))
+            except:
+                pass
+
+        kwargs = {"trust_remote_code": trust_remote_code}
+        if cache_dir:
+            kwargs["cache_dir"] = cache_dir
+
+        model = PeftModel.from_pretrained(hf_model, lora_model_id, **kwargs)
+        return (model,)
+
+
 # Register nodes
 NODE_CLASS_MAPPINGS = {
     "LoadHuggingFaceModel": LoadHuggingFaceModel,
     "RunHuggingFaceModel": RunHuggingFaceModel,
+    "ApplyLoRAAdapter": ApplyLoRAAdapter,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "LoadHuggingFaceModel": "Load HuggingFace Model",
     "RunHuggingFaceModel": "Run HuggingFace Model",
+    "ApplyLoRAAdapter": "Apply LoRA Adapter",
 }
 
 
